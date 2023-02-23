@@ -12,7 +12,7 @@
     "Mokiniu_registro_api": {
       "commandName": "Project",
       "dotnetRunMessages": true,
-      "launchBrowser": true,
+      "launchBrowser": false,
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7050;http://localhost:5009",
       "environmentVariables": {

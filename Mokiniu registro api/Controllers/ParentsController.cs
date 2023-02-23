@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Mokiniu_registro_api.DTOs;
@@ -52,7 +53,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //GET: api/Parents
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Parent>>> GetParents()
+        public async Task<ActionResult<IEnumerable<Parent>>> GetAll()
         {
             if (_dbContext.Parents == null)
             {
@@ -80,7 +81,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //POST: api/Parents
         [HttpPost]
-        public async Task<ActionResult<Parent>> PostParent(Parent parent)
+        public async Task<ActionResult<Parent>> CreateParent(Parent parent)
         {
             _dbContext.Parents.Add(parent);
             await _dbContext.SaveChangesAsync();
@@ -90,7 +91,8 @@ namespace Mokiniu_registro_api.Controllers
 
         //PUT: api/Parents/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutParent(int id, Parent parent)
+        [Authorize]
+        public async Task<IActionResult> UpdateParent(int id, Parent parent)
         {
             if (id != parent.Id)
             {
@@ -120,6 +122,7 @@ namespace Mokiniu_registro_api.Controllers
 
         // DELETE: api/Parents/5
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteParent(int id)
         {
             if (_dbContext.Parents == null)
