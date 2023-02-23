@@ -11,7 +11,7 @@ using Mokiniu_registro_api;
 namespace Mokiniu_registro_api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20230222082209_Initial")]
+    [Migration("20230223090201_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -35,6 +35,12 @@ namespace Mokiniu_registro_api.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ParentId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SchoolId")
+                        .HasColumnType("int");
 
                     b.HasKey("Id");
 
