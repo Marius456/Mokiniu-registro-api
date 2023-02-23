@@ -19,7 +19,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //GET: api/Schools
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<School>>> GetSchools()
+        public async Task<ActionResult<IEnumerable<School>>> GetAll()
         {
             if (_dbContext.Schools == null)
             {
@@ -29,7 +29,7 @@ namespace Mokiniu_registro_api.Controllers
         }
 
         //GET: api/Schools
-        [HttpGet("/names")]
+        [HttpGet("Names")]
         [Authorize]
         public async Task<ActionResult<IEnumerable<string>>> GetChildrenSchools(string parentEmail)
         {
@@ -73,7 +73,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //POST: api/Schools
         [HttpPost]
-        public async Task<ActionResult<School>> PostSchool(School school)
+        public async Task<ActionResult<School>> CreateSchool(School school)
         {
             _dbContext.Schools.Add(school);
             await _dbContext.SaveChangesAsync();
@@ -83,7 +83,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //PUT: api/Schools/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutSchool(int id, School school)
+        public async Task<IActionResult> UpdateSchool(int id, School school)
         {
             if (id != school.Id)
             {

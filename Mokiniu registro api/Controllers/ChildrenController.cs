@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Mokiniu_registro_api.Models;
@@ -18,7 +19,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //GET: api/Children
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Child>>> GetChildren()
+        public async Task<ActionResult<IEnumerable<Child>>> GetAll()
         {
             if (_dbContext.Children == null)
             {
@@ -46,7 +47,8 @@ namespace Mokiniu_registro_api.Controllers
 
         //POST: api/Children
         [HttpPost]
-        public async Task<ActionResult<Child>> PostChild(Child child)
+        [Authorize]
+        public async Task<ActionResult<Child>> CreateChild(Child child)
         {
             _dbContext.Children.Add(child);
             await _dbContext.SaveChangesAsync();
@@ -56,7 +58,8 @@ namespace Mokiniu_registro_api.Controllers
 
         //PUT: api/Children/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> PutChild(int id, Child child)
+        [Authorize]
+        public async Task<IActionResult> UpdateChild(int id, Child child)
         {
             if (id != child.Id)
             {
@@ -86,6 +89,7 @@ namespace Mokiniu_registro_api.Controllers
 
         // DELETE: api/Children/5
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<IActionResult> DeleteChild(int id)
         {
             if (_dbContext.Children == null)
