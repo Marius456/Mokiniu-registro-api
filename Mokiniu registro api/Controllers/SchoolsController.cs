@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Mokiniu_registro_api.Models;
@@ -25,6 +26,32 @@ namespace Mokiniu_registro_api.Controllers
                 return NotFound();
             }
             return await _dbContext.Schools.ToListAsync();
+        }
+
+        //GET: api/Schools
+        [HttpGet("/names")]
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<string>>> GetChildrenSchools(string parentEmail)
+        {
+            var user = await _dbContext.Parents.FirstOrDefaultAsync(parent => parent.Email == parentEmail);
+            if (user == null)
+            {
+                return BadRequest();
+            }
+
+            var children = await _dbContext.Children.Where(r => r.ParentId.Equals(user.Id)).ToListAsync();
+            if (children == null)
+            {
+                return NotFound();
+            }
+
+            HashSet<string> schoolNames = new HashSet<string>();
+
+            foreach (var child in children)
+            {
+                schoolNames.Add((await _dbContext.Schools.FindAsync(child.SchoolId)).Name);
+            }
+            return schoolNames;
         }
 
         //GET: api/Schools/1
