@@ -46,7 +46,7 @@ namespace Mokiniu_registro_api.Controllers
         //POST: api/Children
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult<Child>> CreateChild([FromBody] Child child)
+        public async Task<ActionResult<Child>> Create([FromBody] Child child)
         {
             var result = await _childrenService.Create(child);
             if (!result.Success)
@@ -87,7 +87,7 @@ namespace Mokiniu_registro_api.Controllers
         // DELETE: api/Children/5
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<IActionResult> DeleteChild(int id)
+        public async Task<IActionResult> Delete(int id)
         {
             try
             {

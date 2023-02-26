@@ -47,7 +47,7 @@ namespace Mokiniu_registro_api.Controllers
 
         //GET: api/Schools/1
         [HttpGet("{id}")]
-        [ProducesResponseType(typeof(Child), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(Parent), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ErrorDTO), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<School>> GetById(int id)
         {
