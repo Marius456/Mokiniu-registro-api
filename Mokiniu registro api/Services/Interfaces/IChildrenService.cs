@@ -9,7 +9,7 @@ namespace Mokiniu_registro_api.Services.Interfaces
         Task<IEnumerable<Child>> GetAll();
         Task<ChildrenResponse> GetById(int id);
         Task<ChildrenResponse> Create(Child child);
-        Task<ChildrenResponse> Update(int id, Child child, string userMail);
+        Task<ChildrenResponse> Update(int id, Child updatedChild, string userMail);
         Task<ChildrenResponse> Delete(int id, string userMail);
     }
 }

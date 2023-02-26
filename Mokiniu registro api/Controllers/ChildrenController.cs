@@ -13,12 +13,10 @@ namespace Mokiniu_registro_api.Controllers
     [ApiController]
     public class ChildrenController : ControllerBase
     {
-        private readonly AppDbContext _dbContext;
         private readonly IChildrenService _childrenService;
 
-        public ChildrenController(AppDbContext dbContext, IChildrenService childrenService)
+        public ChildrenController(IChildrenService childrenService)
         {
-            _dbContext = dbContext;
             _childrenService = childrenService;
         }
 
@@ -91,7 +89,6 @@ namespace Mokiniu_registro_api.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteChild(int id)
         {
-
             try
             {
                 var result = await _childrenService.Delete(id, User.Identity.Name);
