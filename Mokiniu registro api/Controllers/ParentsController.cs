@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Mokiniu_registro_api.DTOs;
+using Mokiniu_registro_api.DTOs.Errors;
 using Mokiniu_registro_api.Models;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using Mokiniu_registro_api.Services;
+using Mokiniu_registro_api.Services.Interfaces;
 
 namespace Mokiniu_registro_api.Controllers
 {
@@ -14,109 +13,88 @@ namespace Mokiniu_registro_api.Controllers
     [ApiController]
     public class ParentsController : ControllerBase
     {
-        private readonly AppDbContext _dbContext;
-        private readonly IConfiguration _config;
+        private readonly IParentService _parentService;
 
-        public ParentsController(
-                           AppDbContext dbContext,
-                           IConfiguration config
-            )
+        public ParentsController(IParentService parentService)
         {
-            _dbContext = dbContext;
-            _config = config;
+            _parentService = parentService;
         }
 
 
         [HttpPost]
         [Route("login")]
+        [ProducesResponseType(typeof(AuthenticatedUserDTO), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status400BadRequest)]
         public async Task<IActionResult> Login([FromBody] LoginDTO loginDTO)
         {
-            var user = await _dbContext.Parents.FirstOrDefaultAsync(parent => parent.Email == loginDTO.Email);
-            if (user == null)
+            var response = await _parentService.Login(loginDTO);
+            if (response.Success == false)
             {
-                return BadRequest();
+                return BadRequest(response.Message);
             }
-
-            if (!user.Password.Equals(loginDTO.Password))
-            {
-                return BadRequest();
-            }
-
-            var token = GenerateJwtToken(user);
-
-            return Ok(new
-            {
-                Email = user.Email,
-                Token = token
-            });
+            return Ok(response.Data);
         }
 
         //GET: api/Parents
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Parent>>> GetAll()
+        public Task<IEnumerable<Parent>> GetAll()
         {
-            if (_dbContext.Parents == null)
-            {
-                return NotFound();
-            }
-            return await _dbContext.Parents.ToListAsync();
+            return _parentService.GetAll();
         }
 
         //GET: api/Parents/1
         [HttpGet("{id}")]
-        public async Task<ActionResult<Parent>> GetParent(int id)
+        [ProducesResponseType(typeof(Parent), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErrorDTO), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<Parent>> GetById(int id)
         {
-            if (_dbContext.Parents == null)
+            var result = await _parentService.GetById(id);
+
+            if (!result.Success)
             {
-                return NotFound();
-            }
-            var parent = await _dbContext.Parents.FindAsync(id);
-            if (parent == null)
-            {
-                return NotFound();
+                return NotFound(result.Messages);
             }
 
-            return parent;
+            return result.Parent;
         }
 
         //POST: api/Parents
         [HttpPost]
-        public async Task<ActionResult<Parent>> CreateParent(Parent parent)
+        public async Task<ActionResult<Parent>> Create([FromBody] Parent parent)
         {
-            _dbContext.Parents.Add(parent);
-            await _dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetParent), new { id = parent.Id }, parent);
+            var result = await _parentService.Create(parent);
+            if (!result.Success)
+            {
+                return BadRequest(result.Messages);
+            }
+            return CreatedAtAction("GetAll", result.Parent);
         }
 
         //PUT: api/Parents/5
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateParent(int id, Parent parent)
+        public async Task<IActionResult> Update(int id, Parent parent)
         {
-            if (id != parent.Id)
-            {
-                return BadRequest();
-            }
-
-            _dbContext.Entry(parent).State = EntityState.Modified;
-
             try
             {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ParentExist(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+                var result = await _parentService.Update(id, parent, User.Identity.Name);
 
+                if (!result.Autorise)
+                {
+                    return Unauthorized(result.Messages);
+                }
+
+                if (!result.Success)
+                {
+                    return BadRequest(result.Messages);
+                }
+            }
+            catch (KeyNotFoundException)
+            {
+                Error e = new Error();
+                e.Message = "Parent not found.";
+                return NotFound(e);
+            }
             return NoContent();
         }
 
@@ -125,45 +103,26 @@ namespace Mokiniu_registro_api.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteParent(int id)
         {
-            if (_dbContext.Parents == null)
+            try
             {
-                return NotFound();
-            }
+                var result = await _parentService.Delete(id, User.Identity.Name);
 
-            var parent = await _dbContext.Parents.FindAsync(id);
-            if (parent == null)
+                if (!result.Autorise)
+                {
+                    return Unauthorized(result.Messages);
+                }
+                if (!result.Success)
+                {
+                    return BadRequest(result.Messages);
+                }
+            }
+            catch (KeyNotFoundException)
             {
-                return NotFound();
+                Error e = new Error();
+                e.Message = "Parent not found.";
+                return NotFound(e);
             }
-
-            _dbContext.Parents.Remove(parent);
-            await _dbContext.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private bool ParentExist(long id)
-        {
-            return (_dbContext.Parents?.Any(c => c.Id == id)).GetValueOrDefault();
-        }
-
-        private string GenerateJwtToken(Parent user)
-        {
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-            var permClaims = new List<Claim>();
-            permClaims.Add(new Claim(ClaimTypes.Name, user.Email.ToString()));
-
-            var token = new JwtSecurityToken(
-                _config["Jwt:Issuer"],
-                _config["Jwt:Issuer"],
-                permClaims,
-                expires: DateTime.Now.AddMinutes(500),
-                signingCredentials: credentials
-            );
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
         }
     }
 }
