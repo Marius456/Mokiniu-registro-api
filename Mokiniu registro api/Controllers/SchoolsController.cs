@@ -2,7 +2,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Mokiniu_registro_api.DTOs;
+using Mokiniu_registro_api.DTOs.Errors;
 using Mokiniu_registro_api.Models;
+using Mokiniu_registro_api.Services;
+using Mokiniu_registro_api.Services.Interfaces;
 
 namespace Mokiniu_registro_api.Controllers
 {
@@ -11,130 +15,106 @@ namespace Mokiniu_registro_api.Controllers
     public class SchoolsController : ControllerBase
     {
         private readonly AppDbContext _dbContext;
+        private readonly ISchoolService _schoolService;
 
-        public SchoolsController(AppDbContext dbContext)
+        public SchoolsController(AppDbContext dbContext, ISchoolService schoolService)
         {
             _dbContext = dbContext;
+            _schoolService = schoolService;
         }
 
         //GET: api/Schools
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<School>>> GetAll()
+        public Task<IEnumerable<School>> GetAll()
         {
-            if (_dbContext.Schools == null)
-            {
-                return NotFound();
-            }
-            return await _dbContext.Schools.ToListAsync();
+            return _schoolService.GetAll();
         }
 
         //GET: api/Schools
         [HttpGet("Names")]
         [Authorize]
-        public async Task<ActionResult<IEnumerable<string>>> GetChildrenSchools(string parentEmail)
+        public async Task<ActionResult<IEnumerable<string>>> GetChildrenSchoolsNames(string parentEmail)
         {
-            var user = await _dbContext.Parents.FirstOrDefaultAsync(parent => parent.Email == parentEmail);
-            if (user == null)
+            var result = await _schoolService.GetChildrenSchoolsNames(parentEmail);
+
+            if (result == null)
             {
-                return BadRequest();
+                return NotFound(result);
             }
 
-            var children = await _dbContext.Children.Where(r => r.ParentId.Equals(user.Id)).ToListAsync();
-            if (children == null)
-            {
-                return NotFound();
-            }
-
-            HashSet<string> schoolNames = new HashSet<string>();
-
-            foreach (var child in children)
-            {
-                schoolNames.Add((await _dbContext.Schools.FindAsync(child.SchoolId)).Name);
-            }
-            return schoolNames;
+            return Ok(result);
         }
 
         //GET: api/Schools/1
         [HttpGet("{id}")]
-        public async Task<ActionResult<School>> GetSchool(int id)
+        [ProducesResponseType(typeof(Child), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErrorDTO), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<School>> GetById(int id)
         {
-            if (_dbContext.Schools == null)
+            var result = await _schoolService.GetById(id);
+
+            if (!result.Success)
             {
-                return NotFound();
-            }
-            var school = await _dbContext.Schools.FindAsync(id);
-            if (school == null)
-            {
-                return NotFound();
+                return NotFound(result.Messages);
             }
 
-            return school;
+            return result.School;
         }
 
         //POST: api/Schools
         [HttpPost]
-        public async Task<ActionResult<School>> CreateSchool(School school)
+        public async Task<ActionResult<School>> Create([FromBody] School school)
         {
-            _dbContext.Schools.Add(school);
-            await _dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetSchool), new { id = school.Id }, school);
+            var result = await _schoolService.Create(school);
+            if (!result.Success)
+            {
+                return BadRequest(result.Messages);
+            }
+            return CreatedAtAction("GetAll", result.School);
         }
 
         //PUT: api/Schools/5
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateSchool(int id, School school)
+        public async Task<IActionResult> Update(int id, [FromBody] School school)
         {
-            if (id != school.Id)
-            {
-                return BadRequest();
-            }
-
-            _dbContext.Entry(school).State = EntityState.Modified;
-
             try
             {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!SchoolExist(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+                var result = await _schoolService.Update(id, school);
 
+                if (!result.Success)
+                {
+                    return BadRequest(result.Messages);
+                }
+            }
+            catch (KeyNotFoundException)
+            {
+                Error e = new Error();
+                e.Message = "School not found.";
+                return NotFound(e);
+            }
             return NoContent();
         }
 
         // DELETE: api/Schools/5
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteSchool(int id)
+        public async Task<IActionResult> Delete(int id)
         {
-            if (_dbContext.Schools == null)
+            try
             {
-                return NotFound();
-            }
+                var result = await _schoolService.Delete(id);
 
-            var school = await _dbContext.Schools.FindAsync(id);
-            if (school == null)
+                if (!result.Success)
+                {
+                    return BadRequest(result.Messages);
+                }
+            }
+            catch (KeyNotFoundException)
             {
-                return NotFound();
+                Error e = new Error();
+                e.Message = "School not found.";
+                return NotFound(e);
             }
-
-            _dbContext.Schools.Remove(school);
-            await _dbContext.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private bool SchoolExist(long id)
-        {
-            return (_dbContext.Schools?.Any(c => c.Id == id)).GetValueOrDefault();
         }
     }
 }
