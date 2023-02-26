@@ -2,7 +2,10 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Mokiniu_registro_api.DTOs;
+using Mokiniu_registro_api.DTOs.Errors;
 using Mokiniu_registro_api.Models;
+using Mokiniu_registro_api.Services.Interfaces;
 
 namespace Mokiniu_registro_api.Controllers
 {
@@ -11,79 +14,75 @@ namespace Mokiniu_registro_api.Controllers
     public class ChildrenController : ControllerBase
     {
         private readonly AppDbContext _dbContext;
+        private readonly IChildrenService _childrenService;
 
-        public ChildrenController(AppDbContext dbContext)
+        public ChildrenController(AppDbContext dbContext, IChildrenService childrenService)
         {
             _dbContext = dbContext;
+            _childrenService = childrenService;
         }
 
         //GET: api/Children
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Child>>> GetAll()
+        public Task<IEnumerable<Child>> GetAll()
         {
-            if (_dbContext.Children == null)
-            {
-                return NotFound();
-            }
-            return await _dbContext.Children.ToListAsync();
+            return _childrenService.GetAll();
         }
 
         //GET: api/Children/1
         [HttpGet("{id}")]
-        public async Task<ActionResult<Child>> GetChild(int id)
+        [ProducesResponseType(typeof(Child), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ErrorDTO), StatusCodes.Status404NotFound)]
+        public async Task<ActionResult<Child>> GetById(int id)
         {
-            if (_dbContext.Children == null)
+            var result = await _childrenService.GetById(id);
+
+            if (!result.Success)
             {
-                return NotFound();
-            }
-            var child = await _dbContext.Children.FindAsync(id);
-            if (child == null)
-            {
-                return NotFound();
+                return NotFound(result.Messages);
             }
 
-            return child;
+            return result.Child;
         }
 
         //POST: api/Children
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult<Child>> CreateChild(Child child)
+        public async Task<ActionResult<Child>> CreateChild([FromBody] Child child)
         {
-            _dbContext.Children.Add(child);
-            await _dbContext.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetChild), new {id = child.Id}, child);
+            var result = await _childrenService.Create(child);
+            if (!result.Success)
+            {
+                return BadRequest(result.Messages);
+            }
+            return CreatedAtAction("GetAll", result.Child);
         }
 
         //PUT: api/Children/5
         [HttpPut("{id}")]
         [Authorize]
-        public async Task<IActionResult> UpdateChild(int id, Child child)
+        public async Task<ActionResult> Update(int id, [FromBody] Child child)
         {
-            if (id != child.Id)
-            {
-                return BadRequest();
-            }
-
-            _dbContext.Entry(child).State = EntityState.Modified;
-
             try
             {
-                await _dbContext.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if(!ChildExist(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
+                var result = await _childrenService.Update(id, child, User.Identity.Name);
 
+                if (!result.Autorise)
+                {
+                    return Unauthorized(result.Messages);
+                }
+
+                if (!result.Success)
+                {
+                    return BadRequest(result.Messages);
+                }
+            }
+            catch (KeyNotFoundException)
+            {
+                Error e = new Error();
+                e.Message = "Child not found.";
+                return NotFound(e);
+            }
             return NoContent();
         }
 
@@ -92,26 +91,27 @@ namespace Mokiniu_registro_api.Controllers
         [Authorize]
         public async Task<IActionResult> DeleteChild(int id)
         {
-            if (_dbContext.Children == null)
+
+            try
             {
-                return NotFound();
-            }
+                var result = await _childrenService.Delete(id, User.Identity.Name);
 
-            var child = await _dbContext.Children.FindAsync(id);
-            if (child == null)
+                if (!result.Autorise)
+                {
+                    return Unauthorized(result.Messages);
+                }
+                if (!result.Success)
+                {
+                    return BadRequest(result.Messages);
+                }
+            }
+            catch (KeyNotFoundException)
             {
-                return NotFound();
+                Error e = new Error();
+                e.Message = "Child not found.";
+                return NotFound(e);
             }
-
-            _dbContext.Children.Remove(child);
-            await _dbContext.SaveChangesAsync();
-
             return NoContent();
-        }
-
-        private bool ChildExist(long id)
-        {
-            return (_dbContext.Children?.Any(c => c.Id == id)).GetValueOrDefault();
         }
     }
 }
